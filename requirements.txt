@@ -1,0 +1,8 @@
+# ComfyUI GPU Memory Manager - 依赖项
+
+# GPU监控（推荐安装）
+pynvml>=11.5.0
+
+# 已包含在ComfyUI中，无需额外安装
+# torch>=2.0.0
+# comfy
