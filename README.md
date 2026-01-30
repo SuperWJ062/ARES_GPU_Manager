@@ -1,4 +1,4 @@
-# ComfyUI GPU显存智能管理 v2.0
+# ComfyUI GPU显存智能管理 v2.0.1
 
 ## 📦 概述
 
