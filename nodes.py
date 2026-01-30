@@ -490,7 +490,6 @@ class ReservedMemorySetter:
                     "min": MIN_RESERVED_GB,
                     "max": 32.0,
                     "step": 0.1,
-                    "display": "slider",
                     "tooltip": "预留显存大小(GB)\n• 手动模式: 固定预留\n• 自动模式: 额外缓冲\n• 智能模式: 动态优化"
                 }),
                 "mode": (["smart", "auto", "manual"], {
@@ -514,7 +513,6 @@ class ReservedMemorySetter:
                     "min": 0.5,
                     "max": 8.0,
                     "step": 0.5,
-                    "display": "slider",
                     "tooltip": "最小安全保留显存(GB)，确保系统稳定"
                 }),
                 "clear_memory": ("BOOLEAN", {
