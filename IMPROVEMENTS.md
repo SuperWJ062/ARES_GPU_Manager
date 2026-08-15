@@ -456,7 +456,7 @@ class ReservedMemorySetter:         # 主节点
 ```
 1. 启动工作流
 2. 智能模式自动优化
-3. show_gpu_info 实时查看 GPU 状态
+3. 显示GPU信息 实时查看 GPU 状态
 4. 提前清理避免OOM
 5. 一次成功
 ```
@@ -485,19 +485,19 @@ class ReservedMemorySetter:         # 主节点
 
 ### 配置迁移
 
-原版配置参数完全保留：
+原版配置参数已汉化（功能不变）：
 ```
-anything ✓ 兼容
-reserved ✓ 兼容
-mode ✓ 兼容
-gpu_index ✓ 兼容
-min_safe_reserve ✓ 兼容
-clear_memory ✓ 兼容
+输入 ✓ 兼容
+预留大小 ✓ 兼容
+模式 ✓ 兼容
+GPU索引 ✓ 兼容
+最小安全保留 ✓ 兼容
+执行前清理 ✓ 兼容
 ```
 
-新增可选参数：
+可选参数：
 ```
-show_gpu_info (默认True)
+显示GPU信息 (默认True)
 ```
 
 ---

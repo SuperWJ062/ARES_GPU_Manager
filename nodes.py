@@ -8,6 +8,9 @@ import logging
 import threading
 import atexit
 import gc
+import subprocess
+import sys
+import time
 import torch
 from comfy import model_management
 
@@ -29,8 +32,8 @@ logger = logging.getLogger("GPUMemoryManager")
 GB_TO_BYTES = 1024 * 1024 * 1024
 MB_TO_BYTES = 1024 * 1024
 MIN_RESERVED_GB = 0.6
-DEFAULT_RESERVED_GB = 1.0
-MIN_SAFE_RESERVE_GB = 2.0
+DEFAULT_RESERVED_GB = 4.0
+MIN_SAFE_RESERVE_GB = 4.0
 MAX_RESERVED_RATIO = 0.9  # 最大预留比例
 
 # 显存使用策略
@@ -284,6 +287,101 @@ class MemoryCleaner:
             return result
 
 # ============================================================================
+# 占位显存管理器
+# ============================================================================
+
+class VRAMOccupier:
+    """占位显存管理器 - 独立进程真占显存，支持延时占用、到时自动释放"""
+
+    _process = None
+    _thread = None
+    _cancel = None
+    _lock = threading.RLock()
+
+    @classmethod
+    def schedule(cls, size_gb: float, gpu_index: int, delay: float, hold: float) -> None:
+        """安排一次占位：延时 delay 秒后占用 size_gb，保持 hold 秒后自动释放"""
+        with cls._lock:
+            cls.cancel()
+            cls._cancel = threading.Event()
+            cancel = cls._cancel
+            cls._thread = threading.Thread(
+                target=cls._run, args=(size_gb, gpu_index, delay, hold, cancel), daemon=True
+            )
+            cls._thread.start()
+
+    @classmethod
+    def _run(cls, size_gb: float, gpu_index: int, delay: float, hold: float, cancel) -> None:
+        if delay > 0 and cancel.wait(delay):
+            return
+        if not cls.occupy(size_gb, gpu_index):
+            return
+        if cancel.wait(hold):
+            cls.release()
+        else:
+            cls.release()
+
+    @classmethod
+    def occupy(cls, size_gb: float, gpu_index: int) -> bool:
+        """启动独立进程占用 size_gb 显存"""
+        with cls._lock:
+            cls.release()
+            try:
+                code = (
+                    "import torch, time\n"
+                    f"size_gb = {size_gb}\n"
+                    f"gpu_index = {gpu_index}\n"
+                    "elements = int(size_gb * (1024 ** 3) / 4)\n"
+                    "torch.zeros(elements, device=f'cuda:{gpu_index}')\n"
+                    "print('occupied', size_gb, 'GB on GPU', gpu_index)\n"
+                    "time.sleep(3600)\n"
+                )
+                cls._process = subprocess.Popen(
+                    [sys.executable, "-u", "-c", code],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+                )
+                time.sleep(1.5)
+                if cls._process.poll() is not None:
+                    cls._process = None
+                    logger.error("占位显存进程提前退出（显存可能不足），占位失败")
+                    return False
+                return True
+            except Exception as e:
+                cls._process = None
+                logger.error(f"启动占位显存进程失败: {e}")
+                return False
+
+    @classmethod
+    def release(cls) -> None:
+        """关闭占位显存进程，释放显存"""
+        with cls._lock:
+            if cls._process is not None:
+                try:
+                    cls._process.terminate()
+                    cls._process.wait(timeout=5)
+                except Exception:
+                    pass
+                cls._process = None
+
+    @classmethod
+    def cancel(cls) -> None:
+        """取消已安排或正在进行的占位"""
+        if cls._cancel is not None:
+            cls._cancel.set()
+        cls.release()
+
+    @classmethod
+    def is_scheduled(cls) -> bool:
+        """是否已有安排的占位（等待中或已占用）"""
+        return cls._thread is not None and cls._thread.is_alive()
+
+    @classmethod
+    def is_occupying(cls) -> bool:
+        return cls._process is not None and cls._process.poll() is None
+
+# ============================================================================
 # 通用类型代理
 # ============================================================================
 
@@ -471,7 +569,7 @@ class ReservedMemorySetter:
                     "tooltip": "预留显存大小(GB)\n• 手动模式: 固定预留\n• 自动模式: 额外缓冲\n• 智能模式: 动态优化"
                 }),
                 "模式": (["智能", "自动", "手动"], {
-                    "default": "智能",
+                    "default": "手动",
                     "tooltip": (
                         "模式选择:\n"
                         "• 智能(推荐): 根据显存状态智能调整\n"
@@ -494,7 +592,7 @@ class ReservedMemorySetter:
                     "tooltip": "最小安全保留显存(GB)，确保系统稳定"
                 }),
                 "执行前清理": ("BOOLEAN", {
-                    "default": False,
+                    "default": True,
                     "label_on": "✓ 清理显存",
                     "label_off": "✗ 不清理",
                     "tooltip": "执行前清理GPU显存缓存"
@@ -504,6 +602,33 @@ class ReservedMemorySetter:
                     "label_on": "✓ 显示信息",
                     "label_off": "✗ 隐藏信息",
                     "tooltip": "显示详细的GPU状态信息"
+                }),
+                "占位显存": ("BOOLEAN", {
+                    "default": False,
+                    "label_on": "✓ 占用",
+                    "label_off": "✗ 释放",
+                    "tooltip": "启动独立进程真占显存，按下方延时/保持自动占用并释放，防止ComfyUI占满显存卡住"
+                }),
+                "占位显存量": ("FLOAT", {
+                    "default": 1.0,
+                    "min": 1.0,
+                    "max": 4.0,
+                    "step": 0.5,
+                    "tooltip": "独立进程占用的显存(GB)，范围 1-4"
+                }),
+                "占位延时": ("FLOAT", {
+                    "default": 5.0,
+                    "min": 0.0,
+                    "max": 60.0,
+                    "step": 1.0,
+                    "tooltip": "占位启动延时(秒)：节点运行后等待多久再开始占用，0=立即"
+                }),
+                "占位保持": ("FLOAT", {
+                    "default": 10.0,
+                    "min": 1.0,
+                    "max": 300.0,
+                    "step": 5.0,
+                    "tooltip": "占位保持时长(秒)：占用后保持多久自动释放，根据流的运行时间填写"
                 })
             }
         }
@@ -528,7 +653,11 @@ class ReservedMemorySetter:
         GPU索引: int = 0,
         最小安全保留: float = MIN_SAFE_RESERVE_GB,
         执行前清理: bool = False,
-        显示GPU信息: bool = True
+        显示GPU信息: bool = True,
+        占位显存: bool = False,
+        占位显存量: float = 2.0,
+        占位延时: float = 0.0,
+        占位保持: float = 30.0
     ) -> Tuple[Any]:
         """设置预留显存
         
@@ -540,6 +669,10 @@ class ReservedMemorySetter:
             最小安全保留: 最小安全保留显存
             执行前清理: 是否清理显存
             显示GPU信息: 是否显示GPU信息
+            占位显存: 是否启动独立进程真占显存
+            占位显存量: 独立进程占用的显存(GB)
+            占位延时: 占位启动延时(秒)
+            占位保持: 占位保持时长(秒)，到时自动释放
             
         Returns:
             输入数据的元组
@@ -572,6 +705,18 @@ class ReservedMemorySetter:
             
             # 设置预留显存
             model_management.EXTRA_RESERVED_VRAM = reserved_bytes
+            
+            # 占位显存（独立进程真占显存，按延时/保持自动占用与释放）
+            if 占位显存:
+                VRAMOccupier.schedule(占位显存量, GPU索引, 占位延时, 占位保持)
+                logger.info(
+                    f"✓ 占位显存已安排: {占位延时:.0f}秒后占用 {占位显存量:.1f}GB (GPU{GPU索引}), "
+                    f"保持 {占位保持:.0f}秒后自动释放"
+                )
+            else:
+                if VRAMOccupier.is_scheduled():
+                    VRAMOccupier.cancel()
+                    logger.info("✓ 占位显存已取消/释放")
             
             # 输出设置信息
             reserved_gb = reserved_bytes / GB_TO_BYTES
@@ -635,6 +780,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
 def cleanup():
     """程序退出时清理资源"""
     try:
+        VRAMOccupier.release()
         gpu_manager = GPUManager()
         gpu_manager.cleanup()
     except Exception as e:

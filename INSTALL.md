@@ -113,7 +113,7 @@ pip install pynvml
 1. ComfyUI版本是否最新
 2. PyTorch是否正确安装
 3. 查看完整错误日志
-4. 尝试使用 Manual 模式（最简单）
+4. 尝试使用 手动 模式（最简单）
 
 ---
 

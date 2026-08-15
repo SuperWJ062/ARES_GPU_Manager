@@ -13,6 +13,10 @@
 
 - 🔧 修复预留显存设置失效问题：`EXTRA_RESERVED_MEMORY` → `EXTRA_RESERVED_VRAM`（适配新版 ComfyUI 的 `model_management` 接口）
 
+### ✨ Added (新增)
+
+- ✨ 新增占位显存功能：独立进程真占显存，支持延时占用、到时自动释放
+
 ### ❌ Removed (移除)
 
 - 🔥 移除 `GPUMemoryMonitor` 节点（GPU显存监控）

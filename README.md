@@ -14,11 +14,11 @@
 
 | 模式 | 计算方式 | 适用场景 | 优点 | 缺点 |
 |------|----------|----------|------|------|
-| **Manual** | 固定值 | 显存需求稳定 | 简单直接 | 不够灵活 |
-| **Auto** | 当前使用+缓冲 | 渐进式任务 | 自动适应 | 可能过于保守 |
-| **Smart** ⭐ | 动态优化 | 通用场景 | 最优平衡 | 略复杂 |
+| **手动** | 固定值 | 显存需求稳定 | 简单直接 | 不够灵活 |
+| **自动** | 当前使用+缓冲 | 渐进式任务 | 自动适应 | 可能过于保守 |
+| **智能** ⭐ | 动态优化 | 通用场景 | 最优平衡 | 略复杂 |
 
-**Smart模式策略：**
+**智能模式策略：**
 
 ```
 可用显存 < 20%  → 预留80%（紧张状态）
@@ -37,6 +37,15 @@
 ### 3. **显存清理**
 
 执行前可清理 PyTorch CUDA 缓存与 Python 垃圾回收，并报告实际释放的显存（GB/MB）。
+
+### 4. **占位显存（真正锁住显存）**
+
+启动独立进程真占显存，并支持**延时占用、到时自动释放**，防止 ComfyUI 占满显存卡住：
+
+- `占位延时`：节点运行后等待多少秒再开始占用
+- `占位保持`：占用后保持多少秒自动释放，按流的时间线填写
+
+**注意：** 占用期间该部分显存不可用，生成所需显存若超出上限会报 CUDA OOM，请按实际余量设置。
 
 ---
 
@@ -68,12 +77,16 @@ pip install pynvml
 
 | 参数 | 说明 | 推荐值 |
 |------|------|--------|
-| reserved | 预留显存大小 | 1.0-2.0 GB |
-| mode | 工作模式 | smart (推荐) |
-| gpu_index | GPU索引 | 0 |
-| min_safe_reserve | 最小安全保留 | 2.0 GB |
-| clear_memory | 是否清理 | False |
-| show_gpu_info | 显示信息 | True |
+| 预留大小 | 预留显存大小 | 1.0-2.0 GB |
+| 模式 | 工作模式 | 智能 (推荐) |
+| GPU索引 | GPU索引 | 0 |
+| 最小安全保留 | 最小安全保留 | 2.0 GB |
+| 执行前清理 | 是否清理 | False |
+| 显示GPU信息 | 显示信息 | True |
+| 占位显存 | 独立进程真占显存 | False |
+| 占位显存量 | 占用的显存 | 2.0 GB (1-4) |
+| 占位延时 | 延时多少秒开始占用 | 0 秒 |
+| 占位保持 | 占用后多少秒自动释放 | 30 秒 |
 
 ---
 
@@ -82,31 +95,31 @@ pip install pynvml
 ### 场景1：高分辨率图像生成
 ```
 推荐配置：
-- Mode: smart
-- Reserved: 2.0-3.0 GB
-- Min Safe Reserve: 3.0 GB
+- 模式: 智能
+- 预留大小: 2.0-3.0 GB
+- 最小安全保留: 3.0 GB
 ```
 
 ### 场景2：批量处理
 ```
 推荐配置：
-- Mode: auto
-- Reserved: 1.0-1.5 GB
-- Clear Memory: True (每批次前清理)
+- 模式: 自动
+- 预留大小: 1.0-1.5 GB
+- 执行前清理: True (每批次前清理)
 ```
 
 ### 场景3：多模型切换
 ```
 推荐配置：
-- Mode: smart
-- Clear Memory: True (切换时清理)
+- 模式: 智能
+- 执行前清理: True (切换时清理)
 ```
 
 ### 场景4：开发调试
 ```
 推荐配置：
-- Mode: manual
-- Show GPU Info: True
+- 模式: 手动
+- 显示GPU信息: True
 ```
 
 ---
@@ -115,21 +128,21 @@ pip install pynvml
 
 ### 显存计算公式
 
-#### Manual模式
+#### 手动模式
 ```python
 reserved_memory = max(user_input, min_safe_reserve)
 if reserved_memory > total_memory * 0.9:
     reserved_memory = total_memory * 0.9
 ```
 
-#### Auto模式
+#### 自动模式
 ```python
 reserved_memory = current_used + buffer
 reserved_memory = max(reserved_memory, min_safe_reserve)
 reserved_memory = min(reserved_memory, total_memory * 0.85)
 ```
 
-#### Smart模式
+#### 智能模式
 ```python
 available_ratio = free_memory / total_memory
 
@@ -167,7 +180,7 @@ reserved_memory = min(reserved_memory, total_memory * 0.9)
 2. **显存预留策略**
    - 过大：浪费显存
    - 过小：可能OOM
-   - 推荐使用 Smart 模式
+   - 推荐使用 智能 模式
 
 3. **清理时机**
    - 模型切换前
@@ -190,13 +203,13 @@ reserved_memory = min(reserved_memory, total_memory * 0.9)
 ### 问题2：设置后仍然OOM
 ```
 原因: 预留值设置过小
-解决: 增加reserved值或使用Smart模式
+解决: 增加预留大小或使用智能模式
 ```
 
 ### 问题3：清理效果不明显
 ```
 原因: 显存已被模型占用
-解决: 使用 clear_memory 在执行前清理
+解决: 开启执行前清理参数
 ```
 
 ---
@@ -206,6 +219,7 @@ reserved_memory = min(reserved_memory, total_memory * 0.9)
 ### v2.2 (当前版本)
 - ✅ 修复预留显存设置失效问题（`EXTRA_RESERVED_MEMORY` → `EXTRA_RESERVED_VRAM`）
 - 🔧 移除冗余节点（GPU显存监控、批量显存清理、VRAM Trigger），功能合并到智能显存预留节点
+- ✨ 新增占位显存功能：独立进程真占显存，支持延时占用、到时自动释放
 
 ### v2.0
 - ✅ 线程安全的单例模式
