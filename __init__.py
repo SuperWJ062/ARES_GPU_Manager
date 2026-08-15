@@ -1,6 +1,6 @@
 """
 ComfyUI GPU显存智能管理节点集
-提供显存预留、监控、清理等功能
+提供显存预留、GPU状态查看、显存清理等功能
 """
 
 from .nodes import (
@@ -18,6 +18,9 @@ __all__ = [
     '__author__',
     '__description__'
 ]
+
+
+
 
 # 打印加载信息
 print(f"[ARES GPU Memory Manager] v{__version__} 已加载")

@@ -54,7 +54,7 @@ def clear_gpu_memory() -> dict:
 ### 改进版实现
 
 ```python
-# nodes.py (改进版 v2.0)
+# nodes.py (改进版 v2.2)
 
 class MemoryCleaner:
     """内存清理器 - 线程安全"""
@@ -307,7 +307,7 @@ def set_memory(self, anything, reserved, mode="smart", gpu_index=0,
         )
         
         # 5. 设置预留显存
-        model_management.EXTRA_RESERVED_MEMORY = reserved_bytes
+        model_management.EXTRA_RESERVED_VRAM = reserved_bytes
         
         # 6. 输出详细信息
         reserved_gb = reserved_bytes / GB_TO_BYTES
@@ -316,7 +316,7 @@ def set_memory(self, anything, reserved, mode="smart", gpu_index=0,
         
     except Exception as e:
         safe_default = max(DEFAULT_RESERVED_GB, min_safe_reserve)
-        model_management.EXTRA_RESERVED_MEMORY = int(safe_default * GB_TO_BYTES)
+        model_management.EXTRA_RESERVED_VRAM = int(safe_default * GB_TO_BYTES)
         logger.error(f"设置预留显存时出错: {e}，使用安全默认值 {safe_default:.2f}GB")
 
     return (anything,)

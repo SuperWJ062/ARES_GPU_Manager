@@ -4,21 +4,19 @@
 
 ### 方法1：手动安装（推荐）
 
-1. **下载文件**
-   - 下载 `nodes_improved.py`
-   - 下载 `__init___improved.py`（重命名为 `__init__.py`）
+1. **下载整个文件夹**
 
-2. **放置文件**
+2. **放置文件夹**
    ```bash
    # Windows
    ComfyUI\custom_nodes\ARES_GPU_Manager\
    ├── __init__.py
-   └── nodes_improved.py
+   └── nodes.py
    
    # Linux/Mac
    ComfyUI/custom_nodes/ARES_GPU_Manager/
    ├── __init__.py
-   └── nodes_improved.py
+   └── nodes.py
    ```
 
 3. **安装依赖（可选）**
@@ -30,7 +28,7 @@
    # Windows: venv\Scripts\activate
    # Linux/Mac: source venv/bin/activate
    
-   # 安装pynvml（用于GPU监控）
+   # 安装pynvml（用于GPU状态查看）
    pip install pynvml
    ```
 
@@ -47,9 +45,9 @@
 
 启动ComfyUI后，应该看到类似输出：
 ```
-[ARES GPU Memory Manager] v2.0.0 已加载
-[ARES GPU Memory Manager] 节点数: 3
-[ARES GPU Memory Manager] 节点列表: 🎛️ 智能显存预留, 📊 GPU显存监控, 🧹 批量显存清理
+[ARES GPU Memory Manager] v2.2.0 已加载
+[ARES GPU Memory Manager] 节点数: 1
+[ARES GPU Memory Manager] 节点列表: 🎛️ 智能显存预留
 [GPUMemoryManager] GPU监控已初始化 (pynvml)
 ```
 
@@ -57,8 +55,6 @@
 
 右键 → Add Node → ARES → 显存管理
 - 🎛️ 智能显存预留
-- 📊 GPU显存监控
-- 🧹 批量显存清理
 
 ### 3. 测试节点
 
@@ -85,7 +81,7 @@
 
 ### Q2: 显示 "未安装pynvml库" 警告
 
-**影响：** GPU监控功能不可用，但基本功能仍然正常
+**影响：** GPU状态查看功能不可用，但显存预留功能仍然正常
 
 **解决方案：**
 ```bash
@@ -136,7 +132,7 @@ pip install pynvml
 
 ## 更新
 
-替换 `nodes_improved.py` 文件后重启ComfyUI即可。
+替换 `nodes.py` 与 `__init__.py` 文件后重启ComfyUI即可。
 
 ---
 

@@ -1,5 +1,7 @@
 # 改进对比详解
 
+> **注意：** 本文记录 v2.0 相对 v1.0 的改进。v2.2 已将「GPU显存监控」与「批量显存清理」节点移除，相关功能合并进「智能显存预留」节点。
+
 ## 📊 核心改进一览表
 
 | 改进类别 | 改进前 | 改进后 | 影响 |
@@ -9,7 +11,7 @@
 | 类型注解 | 部分 | 完整 | 🎯 代码提示 |
 | GPU验证 | 无 | 完整验证 | ✅ 避免错误 |
 | 错误处理 | 基础 | 全面 | 🛡️ 健壮性 |
-| 功能节点 | 1个 | 3个 | 🚀 功能丰富 |
+| 功能节点 | 1个 | 1个（功能集成） | 🚀 功能丰富 |
 | GPU信息 | 显存only | 全方位 | 📊 信息详细 |
 | 清理反馈 | 简单 | 详细报告 | 📈 可追踪 |
 | 资源管理 | 手动 | 自动 | ♻️ 无泄漏 |
@@ -229,7 +231,6 @@ def clear_gpu_memory():
 **问题：**
 - 无清理前后对比
 - 不知道释放了多少显存
-- 单一清理模式
 
 #### 改进后
 ```python
@@ -261,16 +262,11 @@ def clear_gpu_memory(self, gpu_index: int = 0) -> Dict[str, Any]:
 - ✅ 清理前后对比
 - ✅ 显示释放的显存量（GB/MB）
 - ✅ 详细的清理报告
-- ✅ 深度清理模式（aggressive）
 
-**清理报告示例：**
+**清理日志示例：**
 ```
-=== 显存清理报告 ===
-GPU 0: 释放 1.25GB
-GPU 1: 释放 0.80GB
-总计释放: 2.05GB
-已执行深度清理
-✓ 清理完成
+[GPUMemoryManager] PyTorch CUDA缓存已清理
+[GPUMemoryManager] 显存清理成功: 释放了 1.25GB (1280MB)
 ```
 
 ---
@@ -348,32 +344,20 @@ atexit.register(cleanup)
 
 ---
 
-### 9. 新增节点对比
+### 9. 节点功能集成
 
 #### 改进前
 只有1个节点：
 - ReservedMemorySetter（预留显存设置）
 
 #### 改进后
-新增至3个节点：
-
 1. **🎛️ 智能显存预留** (增强版原节点)
    - 三种模式
    - GPU索引选择
-   - 显示详细信息
-   - 清理功能
+   - 显示详细信息（型号/温度/利用率）
+   - 清理功能（含清理前后对比报告）
 
-2. **📊 GPU显存监控** (全新)
-   - 实时监控
-   - 详细状态
-   - 温度/利用率
-   - 暂停/刷新
-
-3. **🧹 批量显存清理** (全新)
-   - 单个/所有GPU
-   - 常规/深度清理
-   - 详细报告
-   - 清理统计
+> **v2.2：** 独立的监控/清理节点已移除，全部功能集成到「智能显存预留」节点中。
 
 ---
 
@@ -389,13 +373,10 @@ class ReservedMemorySetter:
 
 #### 改进后
 ```python
-# 850行，模块化设计
-class GPUManager:          # GPU管理
-class MemoryCleaner:       # 清理功能
-class MemoryStrategyCalculator:  # 策略计算
-class ReservedMemorySetter:      # 主节点
-class GPUMemoryMonitor:          # 监控节点
-class BatchMemoryCleaner:        # 清理节点
+class GPUManager:                   # GPU管理
+class MemoryCleaner:                # 清理功能
+class MemoryStrategyCalculator:     # 策略计算
+class ReservedMemorySetter:         # 主节点
 ```
 
 **优势：**
@@ -446,7 +427,7 @@ class BatchMemoryCleaner:        # 清理节点
 - 生产环境
 - 需要详细日志
 - 多GPU系统
-- 需要监控功能
+- 需要 GPU 状态查看
 - 长时间运行的任务
 - 团队协作项目
 
@@ -475,7 +456,7 @@ class BatchMemoryCleaner:        # 清理节点
 ```
 1. 启动工作流
 2. 智能模式自动优化
-3. 显存监控节点实时查看
+3. show_gpu_info 实时查看 GPU 状态
 4. 提前清理避免OOM
 5. 一次成功
 ```
@@ -494,17 +475,13 @@ class BatchMemoryCleaner:        # 清理节点
    cp __init__.py __init___backup.py
    ```
 
-2. **替换文件**
-   ```bash
-   cp nodes_improved.py nodes.py
-   cp __init___improved.py __init__.py
-   ```
+2. **替换文件**（直接更新 `nodes.py` 与 `__init__.py`）
 
 3. **重启ComfyUI**
 
 4. **测试工作流**
    - 所有原有工作流完全兼容
-   - 新增节点可选使用
+   - 原「GPU显存监控 / 批量显存清理」节点已在 v2.2 移除，功能并入「智能显存预留」节点
 
 ### 配置迁移
 
@@ -528,7 +505,7 @@ show_gpu_info (默认True)
 ## 总结
 
 改进版在保持原有功能的基础上：
-- 📈 功能丰富度 **+200%**
+- 📈 功能丰富度 **大幅提升**（预留/查看/清理集成一体）
 - 🛡️ 健壮性 **+58%**
 - 📝 可维护性 **+80%**
 - 🔒 安全性 **+100%**

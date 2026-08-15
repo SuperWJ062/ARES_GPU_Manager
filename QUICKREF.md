@@ -4,7 +4,7 @@
 
 ### 安装（3步）
 ```bash
-1. 复制文件到: ComfyUI/custom_nodes/ARES_GPU_Manager/
+1. 复制文件夹到: ComfyUI/custom_nodes/ARES_GPU_Manager/
 2. pip install pynvml  (可选)
 3. 重启ComfyUI
 ```
@@ -19,22 +19,11 @@
 
 ---
 
-## 📊 三个节点速览
+## 🎛️ 智能显存预留
 
-### 🎛️ 智能显存预留
-**用途：** 设置显存预留策略  
+**用途：** 设置显存预留策略（附带GPU状态查看和显存清理）  
 **推荐：** mode=smart, reserved=1.0-2.0GB  
 **位置：** 工作流开始处
-
-### 📊 GPU显存监控
-**用途：** 实时查看GPU状态  
-**推荐：** show_gpu_info=True  
-**位置：** 任意位置（不影响工作流）
-
-### 🧹 批量显存清理
-**用途：** 清理显存缓存  
-**推荐：** aggressive=False（日常）  
-**位置：** 模型切换前/显存不足时
 
 ---
 
@@ -74,7 +63,7 @@ clear_memory: True
 ### 场景4：多模型
 ```
 mode: smart
-aggressive: True (清理时)
+clear_memory: True
 clear_all_gpus: True
 ```
 
@@ -89,6 +78,7 @@ clear_all_gpus: True
 | gpu_index | GPU编号 | 0 |
 | min_safe_reserve | 最小保留 | 2.0 |
 | clear_memory | 是否清理 | False |
+| show_gpu_info | 显示GPU信息 | True |
 
 ---
 
@@ -115,7 +105,7 @@ clear_all_gpus: True
 | 节点不显示 | 安装错误 | 检查路径 |
 | 无GPU信息 | 缺少pynvml | `pip install pynvml` |
 | 仍然OOM | 预留太小 | 增加reserved |
-| 清理无效 | 模型占用 | 深度清理 |
+| 清理无效 | 模型占用 | 开启 clear_memory |
 
 ---
 
@@ -124,7 +114,7 @@ clear_all_gpus: True
 ### 正常运行
 ```
 ✓ 智能模式: 2.50GB (状态:充足, ...)
-✓ 已设置预留显存: 2.50GB
+已设置预留显存: 2.50GB
 ```
 
 ### 需要注意
@@ -136,7 +126,7 @@ clear_all_gpus: True
 ### 严重错误
 ```
 ✗ 获取GPU信息时出错 → 检查驱动
-✗ 清理失败 → 查看详细日志
+✗ 设置预留显存时出错 → 查看详细日志
 ```
 
 ---
@@ -150,14 +140,12 @@ clear_all_gpus: True
 
 ### 进阶工作流
 ```
-加载模型 → 智能显存预留 → 生成 → 清理 → 切换模型
-          ↓
-     GPU监控（实时查看）
+加载模型 → 智能显存预留（开启清理） → 生成 → 切换模型
 ```
 
 ### 批量工作流
 ```
-开始 → 批量清理 → 智能显存预留 → 循环处理 → 结束
+开始 → 智能显存预留（clear_memory=开） → 循环处理 → 结束
 ```
 
 ---
@@ -188,10 +176,9 @@ clear_all_gpus: True
 
 ## 💡 Pro Tips
 
-### Tip 1: 监控节点不影响性能
+### Tip 1: show_gpu_info 不影响性能
 ```
-可以一直开启GPU监控节点
-仅用于查看信息，不会影响工作流性能
+可以一直开启，仅用于查看信息
 ```
 
 ### Tip 2: 清理时机
@@ -243,52 +230,19 @@ GPU 1: 辅助任务 (reserved=1.0)
 
 ---
 
-## 🎓 学习路径
-
-### Level 1: 新手 (5分钟)
-```
-1. 安装节点
-2. 使用默认设置
-3. 看懂日志输出
-```
-
-### Level 2: 进阶 (15分钟)
-```
-1. 理解三种模式
-2. 调整参数优化
-3. 使用监控节点
-```
-
-### Level 3: 高级 (30分钟)
-```
-1. 多GPU配置
-2. 批量清理策略
-3. 自定义工作流
-```
-
-### Level 4: 专家 (1小时+)
-```
-1. 阅读完整文档
-2. 理解代码实现
-3. 贡献改进建议
-```
-
----
-
 ## 📚 文档索引
 
 - **安装指南：** INSTALL.md
 - **完整文档：** README.md
 - **改进详解：** IMPROVEMENTS.md
-- **源代码：** nodes_improved.py
+- **源代码：** nodes.py
 
 ---
 
 ## 版本信息
 
 ```
-当前版本: v2.0.0
-更新日期: 2025-01-30
+当前版本: v2.2
 作者: ARES
 许可证: MIT
 ```

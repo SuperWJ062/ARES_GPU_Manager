@@ -282,28 +282,6 @@ class MemoryCleaner:
                 result["success"] = False
             
             return result
-    
-    @staticmethod
-    def clear_all_caches() -> None:
-        """清理所有可能的缓存"""
-        try:
-            # PyTorch缓存
-            if torch.cuda.is_available():
-                for i in range(torch.cuda.device_count()):
-                    with torch.cuda.device(i):
-                        torch.cuda.empty_cache()
-                        torch.cuda.synchronize()
-            
-            # ComfyUI缓存
-            if hasattr(model_management, 'cleanup_models'):
-                model_management.cleanup_models()
-            
-            # Python垃圾回收
-            gc.collect()
-            
-            logger.info("所有缓存已清理")
-        except Exception as e:
-            logger.error(f"清理所有缓存时出错: {e}")
 
 # ============================================================================
 # 通用类型代理
@@ -482,60 +460,56 @@ class ReservedMemorySetter:
     def INPUT_TYPES(cls) -> dict:
         return {
             "required": {
-                "anything": (AlwaysEqualProxy("*"), {
+                "输入": (AlwaysEqualProxy("*"), {
                     "tooltip": "通用输入，用于连接工作流数据"
                 }),
-                "reserved": ("FLOAT", {
+                "预留大小": ("FLOAT", {
                     "default": DEFAULT_RESERVED_GB,
                     "min": MIN_RESERVED_GB,
                     "max": 32.0,
                     "step": 0.1,
                     "tooltip": "预留显存大小(GB)\n• 手动模式: 固定预留\n• 自动模式: 额外缓冲\n• 智能模式: 动态优化"
                 }),
-                "mode": (["smart", "auto", "manual"], {
-                    "default": "smart",
+                "模式": (["智能", "自动", "手动"], {
+                    "default": "智能",
                     "tooltip": (
                         "模式选择:\n"
-                        "• smart(推荐): 根据显存状态智能调整\n"
-                        "• auto: 当前使用量 + 预留缓冲\n"
-                        "• manual: 固定预留值"
+                        "• 智能(推荐): 根据显存状态智能调整\n"
+                        "• 自动: 当前使用量 + 预留缓冲\n"
+                        "• 手动: 固定预留值"
                     )
                 }),
-                "gpu_index": ("INT", {
+                "GPU索引": ("INT", {
                     "default": 0,
                     "min": 0,
                     "max": 7,
                     "step": 1,
                     "tooltip": "GPU设备索引 (0-7)"
                 }),
-                "min_safe_reserve": ("FLOAT", {
+                "最小安全保留": ("FLOAT", {
                     "default": MIN_SAFE_RESERVE_GB,
                     "min": 0.5,
                     "max": 8.0,
                     "step": 0.5,
                     "tooltip": "最小安全保留显存(GB)，确保系统稳定"
                 }),
-                "clear_memory": ("BOOLEAN", {
+                "执行前清理": ("BOOLEAN", {
                     "default": False,
                     "label_on": "✓ 清理显存",
                     "label_off": "✗ 不清理",
                     "tooltip": "执行前清理GPU显存缓存"
                 }),
-                "show_gpu_info": ("BOOLEAN", {
+                "显示GPU信息": ("BOOLEAN", {
                     "default": True,
                     "label_on": "✓ 显示信息",
                     "label_off": "✗ 隐藏信息",
                     "tooltip": "显示详细的GPU状态信息"
                 })
-            },
-            "hidden": {
-                "unique_id": "UNIQUE_ID", 
-                "extra_pnginfo": "EXTRA_PNGINFO"
             }
         }
 
     RETURN_TYPES = (AlwaysEqualProxy("*"),)
-    RETURN_NAMES = ("output",)
+    RETURN_NAMES = ("输出",)
     OUTPUT_NODE = True
     FUNCTION = "set_memory"
     CATEGORY = "ARES/显存管理"
@@ -548,45 +522,43 @@ class ReservedMemorySetter:
     
     def set_memory(
         self, 
-        anything: Any, 
-        reserved: float, 
-        mode: str = "smart",
-        gpu_index: int = 0,
-        min_safe_reserve: float = MIN_SAFE_RESERVE_GB,
-        clear_memory: bool = False,
-        show_gpu_info: bool = True,
-        unique_id: Optional[str] = None, 
-        extra_pnginfo: Optional[Any] = None
+        输入: Any, 
+        预留大小: float, 
+        模式: str = "智能",
+        GPU索引: int = 0,
+        最小安全保留: float = MIN_SAFE_RESERVE_GB,
+        执行前清理: bool = False,
+        显示GPU信息: bool = True
     ) -> Tuple[Any]:
         """设置预留显存
         
         Args:
-            anything: 通用输入数据
-            reserved: 预留显存大小(GB)
-            mode: 模式选择 (smart/auto/manual)
-            gpu_index: GPU设备索引
-            min_safe_reserve: 最小安全保留显存
-            clear_memory: 是否清理显存
-            show_gpu_info: 是否显示GPU信息
-            unique_id: 节点唯一ID
-            extra_pnginfo: 额外PNG信息
+            输入: 通用输入数据
+            预留大小: 预留显存大小(GB)
+            模式: 模式选择 (智能/自动/手动)
+            GPU索引: GPU设备索引
+            最小安全保留: 最小安全保留显存
+            执行前清理: 是否清理显存
+            显示GPU信息: 是否显示GPU信息
             
         Returns:
             输入数据的元组
         """
         try:
+            mode = {"智能": "smart", "自动": "auto", "手动": "manual"}.get(模式, "smart")
+            
             # 验证GPU索引
-            if not self.gpu_manager.validate_gpu_index(gpu_index):
-                logger.error(f"GPU索引 {gpu_index} 无效，使用GPU 0")
-                gpu_index = 0
+            if not self.gpu_manager.validate_gpu_index(GPU索引):
+                logger.error(f"GPU索引 {GPU索引} 无效，使用GPU 0")
+                GPU索引 = 0
             
             # 显示GPU信息
-            if show_gpu_info:
-                self._show_gpu_info(gpu_index)
+            if 显示GPU信息:
+                self._show_gpu_info(GPU索引)
             
             # 清理显存（如果需要）
-            if clear_memory:
-                clean_result = self.memory_cleaner.clear_gpu_memory(gpu_index)
+            if 执行前清理:
+                clean_result = self.memory_cleaner.clear_gpu_memory(GPU索引)
                 if clean_result["success"] and clean_result["freed_memory_gb"] > 0:
                     logger.info(
                         f"✓ 显存清理成功: 释放 {clean_result['freed_memory_gb']:.2f}GB "
@@ -595,11 +567,11 @@ class ReservedMemorySetter:
             
             # 计算预留显存
             reserved_bytes, detail = self.calculator.calculate_reserved_memory(
-                reserved, mode, gpu_index, min_safe_reserve, self.gpu_manager
+                预留大小, mode, GPU索引, 最小安全保留, self.gpu_manager
             )
             
             # 设置预留显存
-            model_management.EXTRA_RESERVED_MEMORY = reserved_bytes
+            model_management.EXTRA_RESERVED_VRAM = reserved_bytes
             
             # 输出设置信息
             reserved_gb = reserved_bytes / GB_TO_BYTES
@@ -608,11 +580,11 @@ class ReservedMemorySetter:
             
         except Exception as e:
             # 出错时使用安全的默认值
-            safe_default = max(DEFAULT_RESERVED_GB, min_safe_reserve)
-            model_management.EXTRA_RESERVED_MEMORY = int(safe_default * GB_TO_BYTES)
+            safe_default = max(DEFAULT_RESERVED_GB, 最小安全保留)
+            model_management.EXTRA_RESERVED_VRAM = int(safe_default * GB_TO_BYTES)
             logger.error(f"设置预留显存时出错: {e}，使用安全默认值 {safe_default:.2f}GB")
 
-        return (anything,)
+        return (输入,)
     
     def _show_gpu_info(self, gpu_index: int) -> None:
         """显示GPU详细信息"""
@@ -645,177 +617,15 @@ class ReservedMemorySetter:
         logger.info(" | ".join(info_parts))
 
 # ============================================================================
-# 显存监控节点 (额外功能)
-# ============================================================================
-
-class GPUMemoryMonitor:
-    """GPU显存监控节点 - 仅用于查看信息，不影响工作流"""
-    
-    @classmethod
-    def INPUT_TYPES(cls) -> dict:
-        return {
-            "required": {
-                "gpu_index": ("INT", {
-                    "default": 0,
-                    "min": 0,
-                    "max": 7,
-                    "step": 1,
-                    "tooltip": "要监控的GPU索引"
-                }),
-                "refresh": ("BOOLEAN", {
-                    "default": True,
-                    "label_on": "✓ 刷新",
-                    "label_off": "✗ 暂停",
-                    "tooltip": "是否实时刷新GPU信息"
-                })
-            }
-        }
-    
-    RETURN_TYPES = ("STRING",)
-    RETURN_NAMES = ("gpu_info",)
-    OUTPUT_NODE = True
-    FUNCTION = "monitor"
-    CATEGORY = "ARES/显存管理"
-    DESCRIPTION = "实时监控GPU显存和状态信息"
-    
-    def __init__(self):
-        self.gpu_manager = GPUManager()
-    
-    def monitor(self, gpu_index: int = 0, refresh: bool = True) -> Tuple[str]:
-        """监控GPU状态"""
-        if not refresh:
-            return ("监控已暂停",)
-        
-        info = self.gpu_manager.get_detailed_info(gpu_index)
-        
-        if not info["available"]:
-            return (f"GPU {gpu_index} 不可用",)
-        
-        # 构建详细信息
-        lines = [
-            f"=== GPU {gpu_index} 状态 ===",
-            f"型号: {info['name'] or '未知'}",
-        ]
-        
-        if info["memory"]:
-            total_gb, used_gb, free_gb = info["memory"]
-            usage_percent = (used_gb / total_gb) * 100
-            lines.extend([
-                f"总显存: {total_gb:.2f} GB",
-                f"已使用: {used_gb:.2f} GB ({usage_percent:.1f}%)",
-                f"可用: {free_gb:.2f} GB",
-            ])
-        
-        if info["temperature"] is not None:
-            lines.append(f"温度: {info['temperature']}°C")
-        
-        if info["utilization"] is not None:
-            lines.append(f"GPU利用率: {info['utilization']}%")
-        
-        info_text = "\n".join(lines)
-        logger.info(f"\n{info_text}")
-        
-        return (info_text,)
-
-# ============================================================================
-# 批量清理节点
-# ============================================================================
-
-class BatchMemoryCleaner:
-    """批量显存清理节点"""
-    
-    @classmethod
-    def INPUT_TYPES(cls) -> dict:
-        return {
-            "required": {
-                "anything": (AlwaysEqualProxy("*"), {
-                    "tooltip": "通用输入，用于连接工作流"
-                }),
-                "clear_all_gpus": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "✓ 清理所有GPU",
-                    "label_off": "✗ 仅当前GPU",
-                    "tooltip": "是否清理所有GPU的显存"
-                }),
-                "aggressive": ("BOOLEAN", {
-                    "default": False,
-                    "label_on": "✓ 深度清理",
-                    "label_off": "✗ 常规清理",
-                    "tooltip": "深度清理模式会额外清理ComfyUI模型缓存"
-                })
-            }
-        }
-    
-    RETURN_TYPES = (AlwaysEqualProxy("*"), "STRING")
-    RETURN_NAMES = ("output", "清理报告")
-    OUTPUT_NODE = True
-    FUNCTION = "clean"
-    CATEGORY = "ARES/显存管理"
-    DESCRIPTION = "批量清理GPU显存缓存"
-    
-    def __init__(self):
-        self.memory_cleaner = MemoryCleaner()
-    
-    def clean(
-        self,
-        anything: Any,
-        clear_all_gpus: bool = False,
-        aggressive: bool = False
-    ) -> Tuple[Any, str]:
-        """执行清理操作"""
-        report_lines = ["=== 显存清理报告 ==="]
-        
-        try:
-            if clear_all_gpus:
-                # 清理所有GPU
-                gpu_count = torch.cuda.device_count() if torch.cuda.is_available() else 0
-                total_freed = 0.0
-                
-                for i in range(gpu_count):
-                    result = self.memory_cleaner.clear_gpu_memory(i)
-                    if result["success"]:
-                        freed = result["freed_memory_gb"]
-                        total_freed += freed
-                        report_lines.append(f"GPU {i}: 释放 {freed:.2f}GB")
-                
-                report_lines.append(f"总计释放: {total_freed:.2f}GB")
-            else:
-                # 仅清理当前GPU
-                result = self.memory_cleaner.clear_gpu_memory(0)
-                if result["success"]:
-                    freed = result["freed_memory_gb"]
-                    report_lines.append(f"释放显存: {freed:.2f}GB")
-            
-            # 深度清理
-            if aggressive:
-                self.memory_cleaner.clear_all_caches()
-                report_lines.append("已执行深度清理")
-            
-            report_lines.append("✓ 清理完成")
-            logger.info("\n".join(report_lines))
-            
-        except Exception as e:
-            error_msg = f"清理失败: {e}"
-            report_lines.append(f"✗ {error_msg}")
-            logger.error(error_msg)
-        
-        report = "\n".join(report_lines)
-        return (anything, report)
-
-# ============================================================================
 # 节点注册
 # ============================================================================
 
 NODE_CLASS_MAPPINGS = {
-    "ReservedMemorySetter": ReservedMemorySetter,
-    "GPUMemoryMonitor": GPUMemoryMonitor,
-    "BatchMemoryCleaner": BatchMemoryCleaner
+    "ReservedMemorySetter": ReservedMemorySetter
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "ReservedMemorySetter": "🎛️ 智能显存预留",
-    "GPUMemoryMonitor": "📊 GPU显存监控",
-    "BatchMemoryCleaner": "🧹 批量显存清理"
+    "ReservedMemorySetter": "🎛️ 智能显存预留"
 }
 
 # ============================================================================
@@ -837,6 +647,6 @@ atexit.register(cleanup)
 # 模块信息
 # ============================================================================
 
-__version__ = "2.0.0"
+__version__ = "2.2.0"
 __author__ = "ARES"
 __description__ = "ComfyUI GPU显存智能管理节点集"
