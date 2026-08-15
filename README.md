@@ -1,5 +1,17 @@
 # ComfyUI GPU显存智能管理 v2.2
 
+## English Overview
+
+A ComfyUI custom node for smart GPU VRAM management. Core features:
+
+1. **Smart VRAM Reservation** - dynamically manages VRAM reservation strategies, with GPU status monitoring and memory cleanup.
+
+Supports **manual / automatic / smart** reservation modes, placeholder VRAM with timed auto-release, GPU info display (model, temperature, utilization), and cache cleanup before execution. It reserves memory through ComfyUI's `model_management.EXTRA_RESERVED_VRAM` to prevent OOM during model switching and heavy loads.
+
+> 中文文档见下方，以下为中文完整说明。
+
+---
+
 ## 📦 概述
 
 这是一个功能强大的 ComfyUI 自定义节点，用于智能管理 GPU 显存，核心节点：
