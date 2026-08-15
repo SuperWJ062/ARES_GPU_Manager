@@ -28,8 +28,8 @@
    # Windows: venv\Scripts\activate
    # Linux/Mac: source venv/bin/activate
    
-   # 安装pynvml（用于GPU状态查看）
-   pip install pynvml
+   # 安装nvidia-ml-py（用于GPU状态查看）
+   pip install nvidia-ml-py
    ```
 
 4. **重启ComfyUI**
@@ -79,16 +79,16 @@
 3. 查看ComfyUI启动日志是否有错误
 4. 尝试清空浏览器缓存（Ctrl+F5）
 
-### Q2: 显示 "未安装pynvml库" 警告
+### Q2: 显示 "未安装nvidia-ml-py库" 警告
 
 **影响：** GPU状态查看功能不可用，但显存预留功能仍然正常
 
 **解决方案：**
 ```bash
-pip install pynvml
+pip install nvidia-ml-py
 ```
 
-### Q3: 安装pynvml后仍然不工作
+### Q3: 安装nvidia-ml-py后仍然不工作
 
 **可能原因：**
 - 虚拟环境问题
@@ -104,7 +104,7 @@ nvidia-smi
 which python  # Linux/Mac
 where python  # Windows
 
-pip install pynvml
+pip install nvidia-ml-py
 ```
 
 ### Q4: 节点执行时报错
@@ -157,7 +157,7 @@ pip install pynvml
 - Python 3.10+
 - NVIDIA GPU with 8GB+ VRAM
 - 最新NVIDIA驱动
-- pynvml 已安装
+- nvidia-ml-py 已安装
 
 ---
 

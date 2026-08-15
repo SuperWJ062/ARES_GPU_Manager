@@ -5,7 +5,7 @@
 ### 安装（3步）
 ```bash
 1. 复制文件夹到: ComfyUI/custom_nodes/ARES_GPU_Manager/
-2. pip install pynvml  (可选)
+2. pip install nvidia-ml-py  (可选)
 3. 重启ComfyUI
 ```
 
@@ -89,7 +89,7 @@
 
 ### ✅ DO
 - 优先使用 智能 模式
-- 安装 pynvml 以获得最佳体验
+- 安装 nvidia-ml-py 以获得最佳体验
 - 在显存不足前清理
 - 查看日志了解运行状态
 
@@ -106,7 +106,7 @@
 | 问题 | 原因 | 解决 |
 |------|------|------|
 | 节点不显示 | 安装错误 | 检查路径 |
-| 无GPU信息 | 缺少pynvml | `pip install pynvml` |
+| 无GPU信息 | 缺少nvidia-ml-py | `pip install nvidia-ml-py` |
 | 仍然OOM | 预留太小 | 增加预留大小 |
 | 清理无效 | 模型占用 | 开启执行前清理 |
 
@@ -219,7 +219,7 @@ GPU 1: 辅助任务 (预留大小=1.0)
 
 ### 检查清单
 1. ✓ 查看启动日志
-2. ✓ 确认pynvml已安装
+2. ✓ 确认nvidia-ml-py已安装
 3. ✓ 检查nvidia-smi
 4. ✓ 尝试手动模式
 5. ✓ 查看完整错误信息

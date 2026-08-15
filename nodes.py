@@ -81,7 +81,7 @@ class GPUManager:
             logger.info("GPU监控已初始化 (pynvml)")
         except ImportError:
             self._pynvml_available = False
-            logger.warning("未安装pynvml库，GPU监控功能不可用。安装命令: pip install pynvml")
+            logger.warning("未安装nvidia-ml-py库（提供pynvml模块），GPU监控功能不可用。安装命令: pip install nvidia-ml-py")
         except Exception as e:
             self._pynvml_available = False
             logger.error(f"初始化pynvml失败: {e}")

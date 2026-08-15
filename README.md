@@ -76,7 +76,7 @@ ComfyUI/
 
 2. 安装依赖（可选，用于 GPU 状态监控）：
 ```bash
-pip install pynvml
+pip install nvidia-ml-py
 ```
 
 3. 重启 ComfyUI
@@ -185,7 +185,7 @@ reserved_memory = min(reserved_memory, total_memory * 0.9)
 
 ## ⚠️ 注意事项
 
-1. **pynvml 依赖**
+1. **nvidia-ml-py 依赖**（提供 `pynvml` 模块）
    - 未安装时 GPU 信息查询会降级，但基本功能正常
    - 推荐安装以获得最佳体验
 
@@ -208,8 +208,8 @@ reserved_memory = min(reserved_memory, total_memory * 0.9)
 
 ### 问题1：无法获取GPU信息
 ```
-原因: pynvml未安装或初始化失败
-解决: pip install pynvml
+原因: nvidia-ml-py未安装或初始化失败
+解决: pip install nvidia-ml-py
 ```
 
 ### 问题2：设置后仍然OOM
